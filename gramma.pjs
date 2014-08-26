@@ -1,0 +1,96 @@
+start
+    = Program
+
+Program
+    = __ exp:Exp* __ EOF {return exp;}
+
+Exp
+  = __ v:(SExp / Atom / Defn) __ {return v;}
+
+Defn
+  = __ "(" __ DEFN_TOKEN __ name:Id __ params:Paramdef __ body:Exp* __ ")" __ {
+    return {
+        type: "DEFN",
+        name: name,
+        params: params,
+        body: body,
+        line: line(),
+        column: column()
+    };
+  }
+
+Paramdef
+  = __ "[" __ params:Param* __ "]" __ {return params;}
+
+Param
+  = __ id:Id __ { return id; }
+
+SExp
+    = __ "(" __ children:Exp* __ ")" __ {
+        return {
+            type: "SEXP",
+            children: children,
+            line: line(),
+            column: column()
+        };
+    }
+
+Atom
+    = value:Id { return { value: value, type: 'ID', line: line(), column: column() } }
+    / value:Natural { return { value: value, type: 'NATURAL', line: line(), column: column() } }
+    / value:String  { return { value: value, type: 'STRING', line: line(), column: column() } }
+
+Natural
+    = digits:[0-9]+ { return parseInt(digits.join(""), 10); }
+
+String "string"
+    = '"' chars:StringCharacters? '"' { return chars; }
+
+StringCharacters
+    = chars:StringCharacter+ { return chars.join(""); }
+
+StringCharacter
+    = !('"' / LineTerminator) char_:SourceCharacter { return char_; }
+
+Id "identifyer"
+    = name:Idname { return name; }
+
+Idname "identifyer"
+    = start:IdStart parts:IdParts* {
+        return start + parts.join('');
+    }
+
+IdStart
+    = [a-z\-\!\?\+\-\*\/\=\>\<]
+
+IdParts
+    = [a-z0-9\-\!\?\+\-\*\/\=]
+
+/* Helper Stuff */
+DEFN_TOKEN = "defn"
+
+SourceCharacter
+    = .
+
+WhiteSpace "whitespace"
+    = [\t\v\f \u00A0\uFEFF]
+
+LineTerminator
+    = [\n\r\u2028\u2029]
+
+LineTerminatorSequence "end of line"
+    = "\n"
+    / "\r\n"
+    / "\r"
+    / "\u2028"
+    / "\u2029"
+
+/* Whitespace */
+_
+  = (WhiteSpace)*
+
+__
+  = (WhiteSpace / LineTerminatorSequence)*
+
+EOF
+    = !.
